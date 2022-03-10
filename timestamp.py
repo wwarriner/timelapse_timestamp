@@ -8,6 +8,14 @@ import cv2 as cv
 import yaml
 
 DEBUG = False
+DEFAULT_CONFIG = {
+    "timestamp": {
+        "origin_px": (25, 25),
+        "scale_factor": 2.0,
+        "color_rgb_uint8": (255, 0, 0),
+        "thickness_px": 3,
+    }
+}
 
 
 def parse_args() -> Dict[str, Any]:
@@ -17,30 +25,36 @@ def parse_args() -> Dict[str, Any]:
         "-i",
         type=float,
         nargs=1,
-        required=True,
+        required=False,
         help="Wall clock interval between frames in seconds.",
     )
-    parser.add_argument("input", type=PurePath, nargs=1, help="Input file path.")
+    parser.add_argument("input", type=PurePath, nargs="?", help="Input file path.")
     parser.add_argument(
         "output", type=PurePath, nargs="?", help="Output file path.", default=None
     )
+    parser.add_argument("--rebuild-config", action="store_true", default=False)
     args = parser.parse_args()
-    frame_interval_seconds: float = args.interval[0]
-    input_path: PurePath = args.input[0]
 
-    if args.output is None:
-        new_file_name = (
-            "-".join([input_path.stem.split(".")[0], "timestamped"]) + input_path.suffix
-        )
-        output_path: PurePath = input_path.parent / new_file_name
+    if args.rebuild_config:
+        parsed = {"rebuild_config": True}
     else:
-        output_path: PurePath = args.output[0]
+        frame_interval_seconds: int = args.interval[0]
+        input_path: PurePath = args.input
+        if args.output is None:
+            new_file_name = (
+                "-".join([input_path.stem.split(".")[0], "timestamped"])
+                + input_path.suffix
+            )
+            output_path: PurePath = input_path.parent / new_file_name
+        else:
+            output_path: PurePath = args.output[0]
+        parsed = {
+            "frame_interval_seconds": frame_interval_seconds,
+            "input_path": input_path,
+            "output_path": output_path,
+        }
 
-    return {
-        "frame_interval_seconds": frame_interval_seconds,
-        "input_path": input_path,
-        "output_path": output_path,
-    }
+    return parsed
 
 
 def read_config() -> Dict[str, Any]:
@@ -50,21 +64,17 @@ def read_config() -> Dict[str, Any]:
             config = yaml.safe_load(f)
         except:
             config_missing = True
-            config = {
-                "timestamp": {
-                    "origin_px": (25, 25),
-                    "scale_factor": 2.0,
-                    "color_rgb_uint8": (255, 0, 0),
-                    "thickness_px": 3,
-                }
-            }
+            config = DEFAULT_CONFIG
 
-    # if missing, recreate default
     if config_missing:
-        with open("config.yml", "w") as f:
-            yaml.dump(config, f)
+        rebuild_config()
 
     return config
+
+
+def rebuild_config() -> None:
+    with open("config.yml", "w") as f:
+        yaml.safe_dump(DEFAULT_CONFIG, f)
 
 
 def create_timestamp(frame_number: int, frame_interval_seconds: float) -> str:
@@ -128,6 +138,11 @@ def transform_frame(
 
 def interface() -> None:
     args = parse_args()
+    if "rebuild_config" in args:
+        rebuild_config()
+        print("Config rebuilt using defaults. Exiting...")
+        exit()
+
     config = read_config()
 
     try:
