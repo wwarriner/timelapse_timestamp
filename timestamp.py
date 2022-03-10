@@ -161,6 +161,7 @@ def interface() -> None:
     # prepare output container
     output_v = av.open(str(args["output_path"]), "w")
     output_stream = output_v.add_stream("h264")
+    output_stream.options = {"crf": "17"}
     output_stream.width = width
     output_stream.height = height
 
