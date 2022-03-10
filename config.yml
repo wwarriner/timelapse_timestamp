@@ -1,0 +1,5 @@
+timestamp:
+  origin_px: [25, 25]
+  scale_factor: 2.0
+  color_rgb_uint8: [255, 0, 0]
+  thickness_px: 3
